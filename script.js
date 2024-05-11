@@ -1,53 +1,34 @@
-// Access video element
-const videoElement = document.getElementById('qr-video');
+document.addEventListener('DOMContentLoaded', async () => {
+    const videoElement = document.getElementById('qr-video');
+    const qrResultElement = document.getElementById('qr-result');
 
-// Function to handle errors
-function handleError(error) {
-    console.error('Error accessing camera:', error);
-}
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        videoElement.srcObject = stream;
+        videoElement.play();
 
-// Start video stream from rear camera (if available)
-navigator.mediaDevices.enumerateDevices()
-    .then(function(devices) {
-        // Find the rear camera device
-        const rearCamera = devices.find(device => device.kind === 'videoinput' && !device.label.toLowerCase().includes('front'));
+        const canvas = document.createElement('canvas');
+        const canvasContext = canvas.getContext('2d');
 
-        // Use the rear camera if found, otherwise use any available camera
-        const constraints = {
-            video: {
-                deviceId: rearCamera ? { exact: rearCamera.deviceId } : undefined,
-                facingMode: 'environment' // Use the rear camera
+        const scanQRCode = () => {
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            canvasContext.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+            if (code) {
+                qrResultElement.textContent = code.data;
+                // Handle QR code data (e.g., send to server, perform action, etc.)
             }
+
+            requestAnimationFrame(scanQRCode);
         };
 
-        return navigator.mediaDevices.getUserMedia(constraints);
-    })
-    .then(function(stream) {
-        videoElement.srcObject = stream;
-    })
-    .catch(handleError);
+        requestAnimationFrame(scanQRCode);
 
-// Configure QuaggaJS to decode QR codes
-Quagga.init({
-    inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: videoElement
-    },
-    decoder: {
-        readers: ["qrcode_reader"]
+    } catch (error) {
+        console.error('Error accessing camera:', error);
     }
-}, function(err) {
-    if (err) {
-        console.error('Error initializing Quagga:', err);
-        return;
-    }
-    Quagga.start();
-});
-
-// Detect when a QR code is scanned
-Quagga.onDetected(function(result) {
-    const qrCodeData = result.codeResult.code;
-    document.getElementById('qr-result').textContent = qrCodeData;
-    // Handle the QR code data here (e.g., send it to a server)
 });
