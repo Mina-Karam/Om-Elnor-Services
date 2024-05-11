@@ -1,14 +1,31 @@
 // Access video element
 const videoElement = document.getElementById('qr-video');
 
-// Start video stream from webcam
-navigator.mediaDevices.getUserMedia({ video: true })
+// Function to handle errors
+function handleError(error) {
+    console.error('Error accessing camera:', error);
+}
+
+// Start video stream from rear camera (if available)
+navigator.mediaDevices.enumerateDevices()
+    .then(function(devices) {
+        // Find the rear camera device
+        const rearCamera = devices.find(device => device.kind === 'videoinput' && !device.label.toLowerCase().includes('front'));
+
+        // Use the rear camera if found, otherwise use any available camera
+        const constraints = {
+            video: {
+                deviceId: rearCamera ? { exact: rearCamera.deviceId } : undefined,
+                facingMode: 'environment' // Use the rear camera
+            }
+        };
+
+        return navigator.mediaDevices.getUserMedia(constraints);
+    })
     .then(function(stream) {
         videoElement.srcObject = stream;
     })
-    .catch(function(error) {
-        console.error('Error accessing webcam:', error);
-    });
+    .catch(handleError);
 
 // Configure QuaggaJS to decode QR codes
 Quagga.init({
